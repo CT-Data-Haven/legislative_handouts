@@ -1,0 +1,290 @@
+---
+output: 
+  pdf_document: 
+    latex_engine: xelatex
+    md_extensions: 
+      +raw_tex
+      +autolink_bare_uris
+    pandoc_args: [
+      "--dpi=300"
+    ]
+header-includes: 
+  \usepackage{fancyhdr}
+  \pagestyle{fancy}
+  \fancyhf{ }
+  \chead{1/2018}
+  \rfoot{\includegraphics[height=0.15in]{DataHaven_Black.png}}
+  \pagenumbering{gobble}
+mainfont: "Minion Pro"
+geometry: top=0.75in, right=0.5in, bottom=0.75in, left=0.5in
+linestretch: 1.0
+subparagraph: yes
+urlcolor: "blue"
+params:
+  this_id: "610U500US09010"
+---
+
+---
+title: Connecticut State Legislative Profile, 2016
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE,
+	dev = "cairo_pdf",
+	fig.showtext = T,
+	fig.align = "center"
+)
+```
+
+```{r}
+setwd("~/_R/legislators/handout")
+library(tidyverse)
+library(showtext)
+library(pander)
+library(ggmap)
+library(scales)
+library(knitr)
+library(rcartocolor)
+
+cairo_pdf()
+
+font_add("frutiger_cond", regular = "FrutigerLTStd-Cn.otf", bold = "FrutigerLTStd-BoldCn.otf")
+font_add("frutiger", regular = "FrutigerLTStd-Roman.otf", bold = "FrutigerLTStd-Bold.otf")
+showtext_auto()
+```
+
+```{r}
+theme_open <- theme_minimal() + 
+  theme(plot.caption = element_text(size = rel(0.6), margin = margin(20, 0, 0, 0, "pt")), 
+        text = element_text(color = "#000000", size = 12, family = "frutiger", face = "plain"),
+        axis.title = element_text(size = rel(0.6)),
+        axis.text = element_text(size = rel(0.6), color = "#202020"),
+        plot.title = element_text(size = rel(0.9), face = "bold", color = "#202020"),
+        strip.text = element_text(size = rel(0.8), color = "#000000"))
+```
+
+
+```{r}
+# will set by params
+# this_id <- "610U500US09008"
+this_id <- params$this_id
+chamber <- ifelse(str_detect(this_id, "^610U5"), "Senate", "House")
+num <- str_sub(this_id, -3) %>% as.integer()
+name <- sprintf("State %s District %s", chamber, num)
+```
+
+```{r}
+pastel <- carto_pal(n = NULL, "Pastel")
+pastel4 <- pastel[c(1, 10, 2, 7)]
+hilite <- "#FE508A"
+
+cap_first <- function(x) paste0(str_sub(x, 1, 1) %>% str_to_upper(), str_sub(x, 2))
+```
+
+
+```{r}
+prof_df <- read_csv("../legislative_data_clean.csv") %>% select(-type, -format)
+
+towns <- read_csv("../town_x_district.csv")
+meta <- read_csv("./meta_tmp.csv") %>% 
+	bind_rows(tibble(displayIndicator = c("Population ages 18-64", "Percent ages 18-64"), topic = "age", displayTopic = "Age", indicator = c("nadults", "padults"))) %>%
+	slice(c(1:19, 62, 63, 20:61)) %>%
+	mutate(order = row_number()) %>% 
+	separate(indicator, into = c("type", "ind2"), sep = 1)
+
+reps <- read_csv("../legis_names.csv")
+
+# town_list <- towns %>% filter(id == this_id) %>% pull("town") %>% paste(collapse = ", ")
+town_list <- towns %>% filter(id == this_id) %>% pull("town")
+rep <- reps %>% filter(id == this_id) %>% pull("string")
+```
+
+
+
+
+```{r}
+df <- prof_df %>%
+	filter(id == this_id | chamber == "State") %>%
+	mutate(indicator = case_when(
+		str_detect(indicator, "(pop|stat)") ~ paste0("n", indicator),
+		topic %in% c("civic", "econ", "health") ~ paste0("p", indicator),
+		indicator %in% c("hh", "inc") ~ paste0("n", indicator),
+		T ~ indicator
+	)) %>%
+	separate(indicator, into = c("type", "ind2"), sep = 1) %>%
+	mutate(topic2 = as.factor(topic) %>% fct_collapse(basic = c("age", "race", "immigration"), cws = c("civic", "econ", "health"), income = c("income", "income_kids", "income_seniors"))) %>%
+	mutate(name = ifelse(chamber == "State", "Connecticut", name)) 
+
+adults <- df %>% 
+	filter(type == "p" & topic == "age") %>%
+	spread(key = ind2, value = value) %>%
+	mutate(adults = 1.0 - under18 - over65) %>%
+	gather(key = ind2, value = value, -chamber:-name) %>%
+	filter(ind2 == "adults")
+
+df2 <- bind_rows(df, adults) %>% 
+	inner_join(meta, by = c("ind2", "type", "topic")) %>%
+	mutate(displayIndicator = displayIndicator %>% str_replace("Percent ", "") %>% cap_first() %>% as.factor() %>% fct_reorder(order)) %>%
+		mutate(name = ifelse(chamber == "State", name, str_extract(name, "\\w+\\s\\d+$")) %>% as.factor() %>% fct_relevel("Connecticut"))
+
+
+pop <- df2 %>% filter(ind2 == "pop_age" & chamber != "State") %>% pull("value")
+hh <- df2 %>% filter(ind2 == "hh" & chamber != "State") %>% pull("value")
+
+tbls <- df2 %>% split(.$topic2)
+```
+
+
+See full dataset and interactive maps for all state Senate and House districts: https://ct-data-haven.github.io/legis2016/
+
+# `r name`
+
+* Represented by `r rep`
+* Covers all or parts of `r town_list`
+* Total population: `r comma(pop)` (`r comma(hh)` households)
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# shapes
+ct_tidy <- read_csv("../../reference/ct_tidy.csv")
+town_tidy <- read_csv("../../reference/town_tidy.csv") %>% filter(id %in% town_list)
+dist_tidy <- read_csv(sprintf("../../reference/%s_tidy.csv", chamber)) %>% filter(id == this_id)
+
+bbox1 <- make_bbox(ct_tidy$long, ct_tidy$lat)
+bbox2 <- make_bbox(dist_tidy$long, dist_tidy$lat)
+
+center1 <- c(mean(c(bbox1[["left"]], bbox1[["right"]])), mean(c(bbox1[["top"]], bbox1[["bottom"]])))
+center2 <- c(mean(c(bbox2[["left"]], bbox2[["right"]])), mean(c(bbox2[["top"]], bbox2[["bottom"]])))
+```
+
+```{r message=FALSE, warning=FALSE}
+basemap1 <- get_map(bbox1, source = "stamen", maptype = "toner-lite", force = F)
+basemap2 <- get_map(bbox2, source = "stamen", maptype = "toner-lite", force = F)
+```
+
+```{r}
+ct_map <- ggmap(basemap1, extent = "device", darken = c(0.4, "white")) +
+	geom_path(aes(x = long, y = lat, group = group), data = ct_tidy, color = "#999999") +
+	geom_polygon(aes(x = long, y = lat, group = group), data = dist_tidy, fill = hilite, alpha = 0.7) + 
+	theme(plot.margin = unit(c(0, 0.25, 0, 0), "in"))
+```
+
+
+```{r}
+zoom_map <- ggmap(basemap2, extent = "device", darken = c(0.4, "white")) +
+	geom_path(aes(x = long, y = lat, group = group), data = dist_tidy, color = hilite, size = 1) 
+```
+
+```{r map, fig.height=3}
+# map_theme <- theme_minimal() %+replace% theme(plot.margin = unit(rep(0.5, 4), "in"))
+cowplot::plot_grid(ct_map, zoom_map, nrow = 1)
+```
+
+```{r demo_plot, fig.height=3.2, fig.width=7.5}
+tbls$basic %>%
+	filter(type == "p" & displayTopic != "Immigration") %>%
+	mutate(rounded = signif(value * 100, digits = 2) %>% paste0("%"), label = ifelse(chamber != "State", paste0(displayIndicator, ":\n", rounded), rounded)) %>%
+	mutate(displayIndicator = fct_rev(displayIndicator)) %>%
+	group_by(name, topic) %>%
+	arrange(name, desc(displayIndicator)) %>%
+	mutate(position = cumsum(value) - (0.5 * value)) %>%
+	ggplot(aes(x = name, y = value, fill = displayIndicator)) +
+		geom_col() +
+		geom_text(aes(y = position, label = label), family = "frutiger_cond", fontface = "bold", size = 2.5, color = "gray20", hjust = 0.5, lineheight = 1) +
+		coord_flip() +
+		scale_fill_manual(values = pastel, guide = F) +
+		scale_y_continuous(breaks = NULL, expand = c(0.012, 0)) +
+		facet_wrap(~ displayTopic, ncol = 1) + 
+		theme_open +
+		theme(text = element_text(family = "frutiger", face = "plain"),
+          panel.grid.major.y = element_blank(), 
+          strip.background = element_rect(fill = "gray90", color = NA), 
+          strip.text = element_text(hjust = 0.01),
+          panel.background = element_rect(fill = "gray96", color = "gray90"),
+          plot.margin = margin(10, 10, 20, 10, "pt")) +
+		labs(x = NULL, y = NULL, title = "Demographics", caption = "Source: US Census Bureau. American Community Survey 2016 5-year estimates.")
+```
+
+
+```{r income_plot, fig.height=2.5, fig.width=7.5}
+income <- bind_rows(tbls$households, tbls$income) %>%
+	filter(ind2 %in% c("own", "burden", "pov", "snap"))
+
+income %>%
+	select(chamber, ind2, type, value) %>%
+	spread(key = type, value = value) %>%
+	mutate(rounded = signif(p * 100, digits = 2) %>% paste0("%")) %>%
+	mutate(label = ifelse(chamber == "State", rounded, sprintf("%s (%s)", rounded, comma(n)))) %>%
+	select(chamber, ind2, label) %>%
+	full_join(income %>% filter(type == "p"), by = c("chamber", "ind2")) %>%
+	mutate(displayIndicator = displayIndicator %>% fct_recode("Households receiving SNAP, etc" = "Of households receiving public assistance/SNAP") %>% fct_relevel("Homeownership rate", "Cost-burden rate", after = Inf)) %>%
+	ggplot(aes(x = fct_rev(name), y = value, fill = name)) +
+		geom_col(position = "dodge", width = 0.75) +
+		geom_text(aes(label = label), size = 2.5, family = "frutiger_cond", fontface = "bold", color = "gray20", vjust = -0.2) +
+		facet_wrap(~ displayIndicator, scales = "free_y", ncol = 4) +
+		scale_fill_manual(values = c("#999999", pastel[1]), guide = F) +
+		scale_y_continuous(breaks = NULL, expand = c(0.2, 0)) +
+		theme_open +
+		theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(), 
+          panel.spacing.y = unit(14, "pt"), 
+          text = element_text(family = "frutiger", face = "plain"),
+          plot.margin = margin(10, 6, 10, 6, "pt"),
+          strip.background = element_rect(fill = "gray90", color = NA), 
+          strip.text = element_text(size = rel(0.65), family = "frutiger", face = "plain"),
+          panel.background = element_rect(fill = "gray96", color = "gray90")) +
+    labs(x = NULL, y = NULL, title = "Households and income", caption = "Source: US Census Bureau. American Community Survey 2016 5-year estimates.")
+
+```
+
+
+
+```{r cws_plot, fig.height=5, fig.width=7.5}
+# want to filter so only shows if chamber == Senate
+if(chamber == "Senate") {
+	tbls$cws %>% 
+		filter(ind2 %in% c("safe", "satis", "respons", "kids", "infl", "food", "finance", "bank", "parks", "jobs")) %>%
+		mutate(displayIndicator = fct_relabel(displayIndicator, function(x) str_replace(x, "government", "govt")) %>% fct_relabel(function(x) str_replace(x, "^(\\w+\\s\\w+\\s\\w+\\s\\w+\\s\\w+\\s)(.+)", "\\1\n\\2"))) %>%
+		mutate(label = signif(value * 100, digits = 2) %>% paste0("%")) %>%
+		ggplot(aes(x = fct_rev(name), y = value, fill = name)) +
+			geom_col(position = "dodge", width = 0.75) +
+			geom_text(aes(label = label), size = 2.5, family = "frutiger_cond", fontface = "bold", color = "gray20", vjust = -0.2) +
+			facet_wrap(~ displayIndicator, scales = "free_y", ncol = 4) +
+			scale_fill_manual(values = c("#999999", pastel[1]), guide = F) +
+			scale_y_continuous(breaks = NULL, expand = c(0.2, 0)) +
+			theme_open +
+			theme(panel.grid.major = element_blank(), 
+	          panel.grid.minor = element_blank(), 
+	          panel.spacing.y = unit(14, "pt"), 
+	          text = element_text(family = "frutiger", face = "plain"),
+	          plot.margin = margin(10, 6, 10, 6, "pt"),
+	          strip.background = element_rect(fill = "gray90", color = NA), 
+	          strip.text = element_text(size = rel(0.65), family = "frutiger", face = "plain"),
+	          panel.background = element_rect(fill = "gray96", color = "gray90")) +
+	    labs(x = NULL, y = NULL, title = "Community wellbeing", caption = "Source: 2015 DataHaven Community Wellbeing Survey.")
+		
+}
+```
+
+```{r results="asis"}
+if(chamber == "House") {
+	cat("\null")
+	cat("\vfill")
+}
+```
+
+
+
+DataHaven
+
+129 Church Street, Suite 605
+
+New Haven, CT 06510
+
+(203) 500-7059 / info@ctdatahaven.org
+
+[ctdatahaven.org](http://www.ctdatahaven.org)
+
+DataHaven is a non-profit organization with a 25-year history of public service to Greater New Haven and Connecticut. Our mission is to improve quality of life by collecting, sharing, and interpreting public data for effective decision making. DataHaven is a formal partner of the National Neighborhood Indicators Partnership of the Urban Institute in Washington, DC.

@@ -1,0 +1,62 @@
+displayIndicator,topic,displayTopic,indicator
+Local parks in good condition,civic,Community vitality,pparks
+Feel safe walking at night,civic,Community vitality,psafe
+Satisfied with area,civic,Community vitality,psatis
+Feel local government is responsive,civic,Community vitality,prespons
+Think residents are able to obtain jobs,civic,Community vitality,pjobs
+Good place to raise kids,civic,Community vitality,pkids
+Have some influence over local government,civic,Community vitality,pinfl
+Food insecurity,econ,Economic security,pfood
+Financial insecurity,econ,Economic security,pfinance
+No bank account,econ,Economic security,pbank
+Transportation insecurity,econ,Economic security,ptransit
+In excellent or very good health,health,Community health: adults,phealth
+Current smoking rate,health,Community health: adults,psmoke
+Obesity rate,health,Community health: adults,pobese
+Dental visit in past year,health,Community health: adults,pdental
+Diabetes rate,health,Community health: adults,pdiabetes
+Total population,age,Age,npop_age
+Population under age 18,age,Age,nunder18
+Percent under age 18,age,Age,punder18
+Population ages 65+,age,Age,nover65
+Percent ages 65+,age,Age,pover65
+Latino population,race,Race and ethnicity,nlatino
+Percent Latino,race,Race and ethnicity,platino
+White population,race,Race and ethnicity,nwhite
+Percent white,race,Race and ethnicity,pwhite
+Black population,race,Race and ethnicity,nblack
+Percent black,race,Race and ethnicity,pblack
+Other race population,race,Race and ethnicity,nother
+Percent other race,race,Race and ethnicity,pother
+Foreign-born population,immigration,Immigration,nfb
+Percent foreign-born,immigration,Immigration,pfb
+Total households,households,Households,nhh
+Owner-occupied households,households,Households,nown
+Homeownership rate,households,Households,pown
+Cost-burdened households,households,Households,nburden
+Cost-burden rate,households,Households,pburden
+Households with a vehicle,households,Households,ncar
+Percent of households with a vehicle,households,Households,pcar
+Population ages 25+,education,Education,npop25
+Adults without high school degree,education,Education,nhs
+Percent of adults without high school degree,education,Education,phs
+Adults with bachelor's or higher,education,Education,nbach
+Percent of adults with bachelor's or higher,education,Education,pbach
+Median household income,income,Income,ninc
+Poverty status known,income,Income,nstat
+Population in poverty,income,Income,npov
+Poverty rate,income,Income,ppov
+Low-income population,income,Income,nlinc
+Low-income rate,income,Income,plinc
+"Under 18, poverty status known",income_kids,Income by age: children,nstat18
+Children in poverty,income_kids,Income by age: children,npov18
+Child poverty rate,income_kids,Income by age: children,ppov18
+Low-income children,income_kids,Income by age: children,nlinc18
+Child low-income rate,income_kids,Income by age: children,plinc18
+"Ages 65+, poverty status known",income_seniors,Income by age: seniors,nstat65
+Seniors in poverty,income_seniors,Income by age: seniors,npov65
+Senior poverty rate,income_seniors,Income by age: seniors,ppov65
+Low-income seniors,income_seniors,Income by age: seniors,nlinc65
+Senior low-income rate,income_seniors,Income by age: seniors,plinc65
+Households receiving public assistance/SNAP,income,Income,nsnap
+Percent of households receiving public assistance/SNAP,income,Income,psnap
